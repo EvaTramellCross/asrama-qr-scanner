@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>Asrama QR Scanner</title>
+
+  <script src="https://unpkg.com/html5-qrcode"
+          type="text/javascript">
+  </script>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: auto;
+    }
+
+    h1 {
+      font-size: 25px;
+    }
+
+    p {
+      color: #666;
+    }
+
+    button {
+      width: 100%;
+      max-width: 350px;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      background: #0081cc;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+
+    #reader {
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      background: white;
+      font-weight: bold;
+      word-break: break-word;
+    }
+
+    .success {
+      color: #198754;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>📷 Student QR Scanner</h1>
+
+  <p>
+    Tap the button below and allow camera access.
+  </p>
+
+  <button onclick="startScanner()">
+    📷 ENABLE CAMERA
+  </button>
+
+  <div id="reader"></div>
+
+  <div id="result">
+    Waiting for QR code...
+  </div>
+
+</div>
+
+
+<script>
+
+let scanner = null;
+
+
+function startScanner() {
+
+  document.getElementById("result").innerText =
+    "Starting camera...";
+
+
+  scanner = new Html5Qrcode("reader");
+
+
+  scanner.start(
+
+    {
+      facingMode: "environment"
+    },
+
+    {
+      fps: 10,
+      qrbox: {
+        width: 250,
+        height: 250
+      }
+    },
+
+    function(decodedText) {
+
+      document.getElementById("result").innerHTML =
+        "<span class='success'>" +
+        "✅ QR CODE FOUND<br><br>" +
+        decodedText +
+        "</span>";
+
+      stopScanner();
+
+    },
+
+    function(errorMessage) {
+      // Ignore scanning errors
+    }
+
+  ).catch(function(error) {
+
+    document.getElementById("result").innerText =
+      "❌ Unable to access camera. " +
+      error;
+
+  });
+
+}
+
+
+function stopScanner() {
+
+  if (scanner) {
+
+    scanner.stop()
+      .then(function() {
+
+        scanner.clear();
+
+      })
+      .catch(function(error) {
+
+        console.log(error);
+
+      });
+
+  }
+
+}
+
+</script>
+
+</body>
+</html>
