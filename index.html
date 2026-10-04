@@ -38,6 +38,18 @@
       font-size: 24px;
     }
 
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #0081cc;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+
     #reader {
       width: 100%;
       margin-top: 20px;
@@ -49,10 +61,6 @@
       border-radius: 12px;
       background: white;
       font-weight: bold;
-    }
-
-    .success {
-      color: #198754;
     }
 
   </style>
@@ -67,13 +75,17 @@
   <h1>📷 Student QR Scanner</h1>
 
   <p>
-    Scan the student's QR code.
+    Tap the button below to activate the camera.
   </p>
+
+  <button onclick="startScanner()">
+    📷 ENABLE CAMERA
+  </button>
 
   <div id="reader"></div>
 
   <div id="result">
-    Waiting for QR code...
+    Waiting for camera...
   </div>
 
 </div>
@@ -82,6 +94,7 @@
 <script>
 
 let scanner = null;
+let scanned = false;
 
 
 // ===============================
@@ -90,8 +103,13 @@ let scanner = null;
 
 function startScanner() {
 
+  document.getElementById('result').innerText =
+    'Starting camera...';
+
+
   scanner =
     new Html5Qrcode("reader");
+
 
   scanner.start(
 
@@ -111,22 +129,32 @@ function startScanner() {
 
     function(decodedText) {
 
+      if (scanned) return;
+
+      scanned = true;
+
       handleQRCode(decodedText);
 
     },
 
     function(errorMessage) {
 
-      // Ignore scanning errors
+      // Ignore normal scanning errors
 
     }
 
-  ).catch(function(error) {
+  ).then(function() {
 
-    document
-      .getElementById("result")
-      .innerText =
-      "❌ Unable to access camera.";
+    document.getElementById('result').innerText =
+      '📷 Camera active — scan the student QR code.';
+
+  }).catch(function(error) {
+
+    console.log(error);
+
+    document.getElementById('result').innerHTML =
+      '❌ Unable to access camera.<br><br>' +
+      'Please check your browser camera permission.';
 
   });
 
@@ -139,49 +167,13 @@ function startScanner() {
 
 function handleQRCode(studentID) {
 
-  document
-    .getElementById("result")
-    .innerHTML =
-    "<span class='success'>" +
-    "✅ QR CODE FOUND<br><br>" +
-    "Student ID: " +
+  document.getElementById('result').innerHTML =
+    '✅ QR CODE FOUND<br><br>' +
+    'Student ID: ' +
     studentID +
-    "<br><br>" +
-    "Returning to app..." +
-    "</span>";
+    '<br><br>' +
+    'Returning to app...';
 
-
-  stopScanner();
-
-
-  // Send Student ID back
-  // to the Apps Script app
-
-  const appsScriptURL =
-    "https://script.google.com/a/macros/moe-dl.edu.my/s/AKfycbzzNT2QL_vTKBuF_UYqPFlffHcOdk5d18HS1ua-cEsbtPJVWzVORdM9SNSe8OJ7uFsm/exec";
-
-
-  const returnURL =
-    appsScriptURL +
-    "?studentID=" +
-    encodeURIComponent(studentID);
-
-
-  setTimeout(function() {
-
-    window.location.href =
-      returnURL;
-
-  }, 1000);
-
-}
-
-
-// ===============================
-// STOP CAMERA
-// ===============================
-
-function stopScanner() {
 
   if (scanner) {
 
@@ -190,25 +182,48 @@ function stopScanner() {
 
         scanner.clear();
 
-      })
-      .catch(function(error) {
+        returnToApp(studentID);
 
-        console.log(error);
+      })
+      .catch(function() {
+
+        returnToApp(studentID);
 
       });
+
+  } else {
+
+    returnToApp(studentID);
 
   }
 
 }
 
 
-// Automatically start camera
+// ===============================
+// RETURN TO APPS SCRIPT
+// ===============================
 
-window.onload = function() {
+function returnToApp(studentID) {
 
-  startScanner();
+  const appsScriptURL =
+    'https://script.google.com/a/macros/moe-dl.edu.my/s/AKfycbzzNT2QL_vTKBuF_UYqPFlffHcOdk5d18HS1ua-cEsbtPJVWzVORdM9SNSe8OJ7uFsm/exec';
 
-};
+
+  const returnURL =
+    appsScriptURL +
+    '?studentID=' +
+    encodeURIComponent(studentID);
+
+
+  setTimeout(function() {
+
+    window.location.href =
+      returnURL;
+
+  }, 800);
+
+}
 
 </script>
 
