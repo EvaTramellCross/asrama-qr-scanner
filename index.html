@@ -10,8 +10,9 @@
 
   <title>Asrama QR Scanner</title>
 
+  <!-- QR SCANNER LIBRARY -->
   <script
-    src="https://unpkg.com/html5-qrcode"
+    src="https://unpkg.com/html5-qrcode@2.3.8"
     type="text/javascript">
   </script>
 
@@ -38,6 +39,10 @@
       font-size: 24px;
     }
 
+    p {
+      color: #666;
+    }
+
     button {
       width: 100%;
       padding: 16px;
@@ -48,6 +53,10 @@
       font-size: 18px;
       font-weight: bold;
       margin: 15px 0;
+    }
+
+    button:disabled {
+      background: #999;
     }
 
     #reader {
@@ -61,6 +70,17 @@
       border-radius: 12px;
       background: white;
       font-weight: bold;
+      line-height: 1.5;
+    }
+
+    .success {
+      background: #d1e7dd !important;
+      color: #0f5132;
+    }
+
+    .error {
+      background: #f8d7da !important;
+      color: #842029;
     }
 
   </style>
@@ -70,6 +90,7 @@
 
 <body>
 
+
 <div class="container">
 
   <h1>📷 Student QR Scanner</h1>
@@ -78,14 +99,23 @@
     Tap the button below to activate the camera.
   </p>
 
-  <button onclick="startScanner()">
+
+  <button
+    id="cameraButton"
+    onclick="startScanner()">
+
     📷 ENABLE CAMERA
+
   </button>
+
 
   <div id="reader"></div>
 
+
   <div id="result">
+
     Waiting for camera...
+
   </div>
 
 </div>
@@ -93,81 +123,295 @@
 
 <script>
 
+
 let scanner = null;
+
 let scanned = false;
 
 
-// ===============================
+// ======================================
 // START CAMERA
-// ===============================
+// ======================================
 
-function startScanner() {
+async function startScanner() {
 
-  document.getElementById('result').innerText =
-    'Starting camera...';
+  const button =
+    document.getElementById(
+      'cameraButton'
+    );
+
+  const result =
+    document.getElementById(
+      'result'
+    );
 
 
-  scanner =
-    new Html5Qrcode("reader");
+  if (scanned) {
+    return;
+  }
 
 
-  scanner.start(
+  button.disabled = true;
 
-    {
-      facingMode: "environment"
-    },
+  result.className = '';
 
-    {
-      fps: 10,
+  result.innerText =
+    '🔄 Requesting camera permission...';
 
-      qrbox: {
-        width: 250,
-        height: 250
-      }
 
-    },
+  try {
 
-    function(decodedText) {
+    // ==================================
+    // STEP 1
+    // Ask the browser for camera access
+    // ==================================
 
-      if (scanned) return;
+    const stream =
+      await navigator.mediaDevices.getUserMedia({
 
-      scanned = true;
+        video: {
+          facingMode: {
+            ideal: 'environment'
+          }
+        },
 
-      handleQRCode(decodedText);
+        audio: false
 
-    },
+      });
 
-    function(errorMessage) {
 
-      // Ignore normal scanning errors
+    // ==================================
+    // STEP 2
+    // Stop the temporary camera stream
+    // ==================================
+
+    stream
+      .getTracks()
+      .forEach(function(track) {
+
+        track.stop();
+
+      });
+
+
+    result.innerText =
+      '✅ Camera permission granted.\n\nStarting QR scanner...';
+
+
+    // ==================================
+    // STEP 3
+    // Get available cameras
+    // ==================================
+
+    const cameras =
+      await Html5Qrcode.getCameras();
+
+
+    if (!cameras || cameras.length === 0) {
+
+      throw new Error(
+        'No camera was detected on this device.'
+      );
 
     }
 
-  ).then(function() {
 
-    document.getElementById('result').innerText =
-      '📷 Camera active — scan the student QR code.';
+    // ==================================
+    // STEP 4
+    // Choose camera
+    // ==================================
 
-  }).catch(function(error) {
+    let cameraId =
+      cameras[0].id;
 
-    console.log(error);
 
-    document.getElementById('result').innerHTML =
-      '❌ Unable to access camera.<br><br>' +
-      'Please check your browser camera permission.';
+    // Prefer the back/rear camera
 
-  });
+    const backCamera =
+      cameras.find(function(camera) {
+
+        const label =
+          camera.label.toLowerCase();
+
+        return (
+          label.includes('back') ||
+          label.includes('rear') ||
+          label.includes('environment')
+        );
+
+      });
+
+
+    if (backCamera) {
+
+      cameraId =
+        backCamera.id;
+
+    }
+
+
+    // ==================================
+    // STEP 5
+    // Start QR scanner
+    // ==================================
+
+    scanner =
+      new Html5Qrcode(
+        "reader"
+      );
+
+
+    await scanner.start(
+
+      cameraId,
+
+      {
+
+        fps: 10,
+
+        qrbox: {
+          width: 250,
+          height: 250
+        }
+
+      },
+
+      function(decodedText) {
+
+        if (scanned) {
+          return;
+        }
+
+
+        scanned = true;
+
+
+        handleQRCode(
+          decodedText
+        );
+
+      },
+
+      function(errorMessage) {
+
+        // Normal QR scanning errors
+        // are ignored.
+
+      }
+
+    );
+
+
+    result.className = '';
+
+    result.innerText =
+      '📷 CAMERA ACTIVE\n\nPoint the camera at the student QR code.';
+
+
+  }
+
+  catch (error) {
+
+    console.error(
+      'Camera error:',
+      error
+    );
+
+
+    button.disabled = false;
+
+
+    result.className =
+      'error';
+
+
+    let message =
+      '❌ Unable to access camera.';
+
+
+    if (
+      error &&
+      error.name ===
+      'NotAllowedError'
+    ) {
+
+      message =
+        '❌ Camera permission was denied.\n\n' +
+        'Please allow camera access for this website, ' +
+        'then try again.';
+
+    }
+
+    else if (
+      error &&
+      error.name ===
+      'NotFoundError'
+    ) {
+
+      message =
+        '❌ No camera was found on this device.';
+
+    }
+
+    else if (
+      error &&
+      error.name ===
+      'NotReadableError'
+    ) {
+
+      message =
+        '❌ The camera is currently being used by another app.\n\n' +
+        'Close other camera apps and try again.';
+
+    }
+
+    else if (
+      error &&
+      error.name ===
+      'SecurityError'
+    ) {
+
+      message =
+        '❌ The browser blocked camera access for security reasons.';
+
+    }
+
+    else if (error && error.message) {
+
+      message =
+        '❌ Camera error:\n\n' +
+        error.message;
+
+    }
+
+
+    result.innerText =
+      message;
+
+  }
 
 }
 
 
-// ===============================
+// ======================================
 // QR CODE FOUND
-// ===============================
+// ======================================
 
-function handleQRCode(studentID) {
+async function handleQRCode(
+  studentID
+) {
 
-  document.getElementById('result').innerHTML =
+  const result =
+    document.getElementById(
+      'result'
+    );
+
+
+  result.className =
+    'success';
+
+
+  result.innerHTML =
     '✅ QR CODE FOUND<br><br>' +
     'Student ID: ' +
     studentID +
@@ -177,34 +421,40 @@ function handleQRCode(studentID) {
 
   if (scanner) {
 
-    scanner.stop()
-      .then(function() {
+    try {
 
-        scanner.clear();
+      await scanner.stop();
 
-        returnToApp(studentID);
+      scanner.clear();
 
-      })
-      .catch(function() {
+    }
 
-        returnToApp(studentID);
+    catch (error) {
 
-      });
+      console.log(
+        'Scanner stop error:',
+        error
+      );
 
-  } else {
-
-    returnToApp(studentID);
+    }
 
   }
+
+
+  returnToApp(
+    studentID
+  );
 
 }
 
 
-// ===============================
+// ======================================
 // RETURN TO APPS SCRIPT
-// ===============================
+// ======================================
 
-function returnToApp(studentID) {
+function returnToApp(
+  studentID
+) {
 
   const appsScriptURL =
     'https://script.google.com/a/macros/moe-dl.edu.my/s/AKfycbzzNT2QL_vTKBuF_UYqPFlffHcOdk5d18HS1ua-cEsbtPJVWzVORdM9SNSe8OJ7uFsm/exec';
@@ -213,7 +463,9 @@ function returnToApp(studentID) {
   const returnURL =
     appsScriptURL +
     '?studentID=' +
-    encodeURIComponent(studentID);
+    encodeURIComponent(
+      studentID
+    );
 
 
   setTimeout(function() {
@@ -225,7 +477,9 @@ function returnToApp(studentID) {
 
 }
 
+
 </script>
+
 
 </body>
 
